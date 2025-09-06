@@ -28,9 +28,10 @@ func UserRegister(c *gin.Context) {
 
 // UserLogin 用户登录
 func UserLogin(c *gin.Context) {
+	// 这里只能支持验证码登录
 	var req struct {
-		Phone    string `json:"phone" binding:"required"`
-		Password string `json:"password" binding:"required"`
+		Phone string `json:"phone" binding:"required"`
+		Code  string `json:"code" binding:"required"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -38,7 +39,19 @@ func UserLogin(c *gin.Context) {
 		return
 	}
 
-	result := service.UserLogin(req.Phone, req.Password)
+	// 判断手机号格式是否正确
+	if ok := utils.IsPhoneValid(req.Phone); !ok {
+		utils.ErrorResponse(c, http.StatusBadRequest, "手机号格式不正确")
+		return
+	}
+
+	// 判断验证码格式是否正确
+	if utils.IsCodeInvalid(req.Code) {
+		utils.ErrorResponse(c, http.StatusBadRequest, "验证码格式不正确")
+		return
+	}
+
+	result := service.UserLogin(req.Phone, req.Code)
 	utils.Response(c, result)
 }
 
@@ -90,6 +103,10 @@ func SendCode(c *gin.Context) {
 		return
 	}
 
+	if !utils.IsPhoneValid(phone) {
+		utils.ErrorResponse(c, http.StatusBadRequest, "手机号格式不正确")
+		return
+	}
 	result := service.SendCode(phone)
 	utils.Response(c, result)
 }

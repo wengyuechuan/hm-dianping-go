@@ -1,17 +1,18 @@
 package service
 
 import (
+	"context"
 	"hm-dianping-go/dao"
 	"hm-dianping-go/models"
 	"hm-dianping-go/utils"
 )
 
 // GetShopById 根据ID获取商铺
-func GetShopById(id uint) *utils.Result {
-	var shop models.Shop
-	err := dao.DB.First(&shop, id).Error
+func GetShopById(ctx context.Context, id uint) *utils.Result {
+	// 查询商铺
+	shop, err := dao.GetShopById(ctx, dao.DB, dao.Redis, id)
 	if err != nil {
-		return utils.ErrorResult("商铺不存在")
+		return utils.ErrorResult("查询失败")
 	}
 
 	return utils.SuccessResultWithData(shop)

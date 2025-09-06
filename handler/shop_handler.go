@@ -18,7 +18,7 @@ func GetShopById(c *gin.Context) {
 		return
 	}
 
-	result := service.GetShopById(uint(id))
+	result := service.GetShopById(c.Request.Context(), uint(id))
 	utils.Response(c, result)
 }
 

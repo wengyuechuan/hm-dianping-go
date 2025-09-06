@@ -1,6 +1,8 @@
 package service
 
 import (
+	"fmt"
+
 	"hm-dianping-go/dao"
 	"hm-dianping-go/models"
 	"hm-dianping-go/utils"
@@ -8,13 +10,30 @@ import (
 
 // UserRegister 用户注册服务
 func UserRegister(phone, code, password, nickName string) *utils.Result {
+	// 校验手机号格式
+	if utils.IsPhoneInvalid(phone) {
+		return utils.ErrorResult("手机号格式不正确")
+	}
+
+	// 校验验证码格式
+	if utils.IsCodeInvalid(code) {
+		return utils.ErrorResult("验证码格式不正确")
+	}
+
+	// 校验密码格式
+	if utils.IsPasswordInvalid(password) {
+		return utils.ErrorResult("密码格式不正确，需要4-32位字母、数字或下划线")
+	}
+
 	// TODO: 验证短信验证码
 	// 这里暂时跳过验证码验证
 
 	// 检查用户是否已存在
-	var existingUser models.User
-	err := dao.DB.Where("phone = ?", phone).First(&existingUser).Error
-	if err == nil {
+	exists, err := dao.CheckUserExistsByPhone(phone)
+	if err != nil {
+		return utils.ErrorResult("系统错误，请稍后重试")
+	}
+	if exists {
 		return utils.ErrorResult("手机号已注册")
 	}
 
@@ -29,7 +48,7 @@ func UserRegister(phone, code, password, nickName string) *utils.Result {
 		user.NickName = "用户" + phone[len(phone)-4:]
 	}
 
-	if err := dao.DB.Create(&user).Error; err != nil {
+	if err := dao.CreateUser(&user); err != nil {
 		return utils.ErrorResult("注册失败")
 	}
 
@@ -37,15 +56,33 @@ func UserRegister(phone, code, password, nickName string) *utils.Result {
 }
 
 // UserLogin 用户登录服务
-func UserLogin(phone, password string) *utils.Result {
-	var user models.User
-	err := dao.DB.Where("phone = ?", phone).First(&user).Error
+func UserLogin(phone, code string) *utils.Result {
+	// 从Redis获取验证码进行验证
+	storedCode, err := dao.GetLoginCode(phone)
 	if err != nil {
-		return utils.ErrorResult("用户不存在")
+		return utils.ErrorResult("验证码已过期或不存在，请重新获取")
 	}
 
-	if !utils.CheckPassword(password, user.Password) {
-		return utils.ErrorResult("密码错误")
+	// 验证验证码是否正确
+	if storedCode != code {
+		return utils.ErrorResult("验证码错误")
+	}
+
+	// 验证成功后删除验证码（防止重复使用）
+	_ = dao.DeleteLoginCode(phone)
+
+	// 根据手机号查询用户
+	user, err := dao.GetUserByPhone(phone)
+	if err != nil {
+		// 用户不存在，自动注册
+		newUser := models.User{
+			Phone:    phone,
+			NickName: "用户" + phone[7:], // 使用手机号后4位作为昵称
+		}
+		if err = dao.CreateUser(&newUser); err != nil {
+			return utils.ErrorResult("登录失败")
+		}
+		user = &newUser
 	}
 
 	// 生成JWT token
@@ -67,8 +104,7 @@ func UserLogin(phone, password string) *utils.Result {
 
 // GetUserInfo 获取用户信息服务
 func GetUserInfo(userID uint) *utils.Result {
-	var user models.User
-	err := dao.DB.First(&user, userID).Error
+	user, err := dao.GetUserByID(userID)
 	if err != nil {
 		return utils.ErrorResult("用户不存在")
 	}
@@ -83,8 +119,7 @@ func GetUserInfo(userID uint) *utils.Result {
 
 // UpdateUserInfo 更新用户信息服务
 func UpdateUserInfo(userID uint, nickName, icon string) *utils.Result {
-	var user models.User
-	err := dao.DB.First(&user, userID).Error
+	user, err := dao.GetUserByID(userID)
 	if err != nil {
 		return utils.ErrorResult("用户不存在")
 	}
@@ -96,7 +131,7 @@ func UpdateUserInfo(userID uint, nickName, icon string) *utils.Result {
 		user.Icon = icon
 	}
 
-	if err := dao.DB.Save(&user).Error; err != nil {
+	if err := dao.UpdateUser(user); err != nil {
 		return utils.ErrorResult("更新失败")
 	}
 
@@ -105,7 +140,33 @@ func UpdateUserInfo(userID uint, nickName, icon string) *utils.Result {
 
 // SendCode 发送验证码服务
 func SendCode(phone string) *utils.Result {
+	// 检查是否已存在未过期的验证码
+	exists, err := dao.CheckLoginCodeExists(phone)
+	if err != nil {
+		return utils.ErrorResult("系统错误，请稍后重试")
+	}
+	// 防止频繁请求，进行避免
+	if exists {
+		// 获取剩余时间
+		ttl, _ := dao.GetLoginCodeTTL(phone)
+		if ttl > 0 {
+			return utils.ErrorResult(fmt.Sprintf("验证码已发送，请%d秒后重试", int(ttl.Seconds())))
+		}
+	}
+
+	// 生成6位随机验证码
+	code := utils.GenerateRandomCode(6)
+
+	// 将验证码存储到Redis，设置5分钟过期
+	err = dao.SetLoginCode(phone, code, 0) // 0表示使用默认过期时间
+	if err != nil {
+		return utils.ErrorResult("验证码发送失败，请稍后重试")
+	}
+
 	// TODO: 实现发送短信验证码功能
-	// 这里暂时返回成功
+	// 这里可以集成短信服务商API，如阿里云短信、腾讯云短信等
+	// 暂时在日志中输出验证码（仅用于开发测试）
+	fmt.Printf("[开发模式] 手机号 %s 的验证码是: %s\n", phone, code)
+
 	return utils.SuccessResult("验证码发送成功")
 }
