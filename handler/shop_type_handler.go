@@ -9,6 +9,6 @@ import (
 
 // GetShopTypeList 获取商铺类型列表
 func GetShopTypeList(c *gin.Context) {
-	result := service.GetShopTypeList()
+	result := service.GetShopTypeList(c.Request.Context())
 	utils.Response(c, result)
 }

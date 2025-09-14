@@ -9,13 +9,62 @@ import (
 
 // GetShopById 根据ID获取商铺
 func GetShopById(ctx context.Context, id uint) *utils.Result {
-	// 查询商铺
-	shop, err := dao.GetShopById(ctx, dao.DB, dao.Redis, id)
-	if err != nil {
-		return utils.ErrorResult("查询失败")
+	// 1. 先从缓存查询
+	shop, err := dao.GetShopCacheById(ctx, dao.Redis, id)
+	if err == nil && shop != nil {
+		// 缓存命中，直接返回
+		return utils.SuccessResultWithData(shop)
 	}
 
+	// 2. 缓存未命中或缓存查询出错，查询数据库
+	shop, err = dao.GetShopById(ctx, dao.DB, id)
+	if err != nil {
+		// 数据库查询失败
+		return utils.ErrorResult("查询失败: " + err.Error())
+	}
+
+	// 3. 缓存未命中，设置缓存
+	err = dao.SetShopCacheById(ctx, dao.Redis, id, shop)
+	if err != nil {
+		return utils.ErrorResult("查询失败: " + err.Error())
+	}
+
+	// 4. 数据库查询成功，返回结果（DAO层已处理缓存写入）
 	return utils.SuccessResultWithData(shop)
+}
+
+// UpdateShopById 根据ID更新商铺
+func UpdateShopById(ctx context.Context, shop *models.Shop) *utils.Result {
+
+	// 0. 启动事务
+	tx := dao.DB.Begin()
+	defer func() { // 捕获异常
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// 1. 更新数据库
+	err := dao.UpdateShop(ctx, tx, shop)
+
+	// 2. 更新失败
+	if err != nil {
+		tx.Rollback()
+		return utils.ErrorResult("更新失败: " + err.Error())
+	}
+
+	// 3. 删除缓存
+	err = dao.DelShopCacheById(ctx, dao.Redis, shop.ID)
+	if err != nil {
+		tx.Rollback()
+		return utils.ErrorResult("更新失败: " + err.Error())
+	}
+
+	// 4. 提交事务
+	tx.Commit()
+
+	// 5. 返回结果
+	return utils.SuccessResult("更新成功")
 }
 
 // GetShopList 获取商铺列表
