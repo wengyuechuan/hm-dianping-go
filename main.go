@@ -1,12 +1,15 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"hm-dianping-go/config"
 	"hm-dianping-go/dao"
 	"hm-dianping-go/models"
 	"hm-dianping-go/router"
+	"hm-dianping-go/utils"
 	"log"
+	"time"
 )
 
 func main() {
@@ -43,6 +46,12 @@ func main() {
 		log.Fatalf("Failed to migrate database: %v", err)
 	}
 
+	// 初始化布隆过滤器
+	if err := initBloomFilters(); err != nil {
+		log.Printf("Warning: Failed to initialize bloom filters: %v", err)
+		// 布隆过滤器初始化失败不应该阻止服务启动，只记录警告
+	}
+
 	// 设置路由
 	r := router.SetupRouter()
 
@@ -55,4 +64,31 @@ func main() {
 	if err := r.Run(":" + port); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
+}
+
+// initBloomFilters 初始化布隆过滤器
+func initBloomFilters() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	// 创建布隆过滤器初始化器
+	initializer := utils.NewBloomInitializer(dao.Redis, dao.DB)
+
+	// 初始化所有布隆过滤器
+	err := initializer.InitAllBloomFilters(
+		ctx,
+		dao.GetAllShopIDs,    // 商铺ID查询函数
+		dao.GetAllUserIDs,    // 用户ID查询函数
+		dao.GetAllVoucherIDs, // 优惠券ID查询函数
+	)
+
+	if err != nil {
+		return err
+	}
+
+	// 检查布隆过滤器健康状态
+	health := initializer.CheckBloomFilterHealth(ctx)
+	log.Printf("布隆过滤器健康状态: %+v", health)
+
+	return nil
 }

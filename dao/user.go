@@ -43,3 +43,13 @@ func CheckUserExistsByPhone(phone string) (bool, error) {
 	}
 	return count > 0, nil
 }
+
+// GetAllUserIDs 获取所有用户ID
+func GetAllUserIDs() ([]uint, error) {
+	var ids []uint
+	err := DB.Model(&models.User{}).Pluck("id", &ids).Error
+	if err != nil {
+		return nil, err
+	}
+	return ids, nil
+}

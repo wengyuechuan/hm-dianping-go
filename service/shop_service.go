@@ -5,31 +5,42 @@ import (
 	"hm-dianping-go/dao"
 	"hm-dianping-go/models"
 	"hm-dianping-go/utils"
+	"log"
 )
 
 // GetShopById 根据ID获取商铺
 func GetShopById(ctx context.Context, id uint) *utils.Result {
-	// 1. 先从缓存查询
+	// 1. 布隆过滤器检查，防止缓存击穿
+	flag, err := utils.CheckIDExistsWithRedis(ctx, dao.Redis, "shop", id)
+	if err != nil {
+		log.Fatalf("检查布隆过滤器失败: %v", err)
+	}
+	if !flag {
+		// 布隆过滤器判断商铺不存在，直接返回
+		return utils.ErrorResult("商铺不存在")
+	}
+
+	// 2. 先从缓存查询
 	shop, err := dao.GetShopCacheById(ctx, dao.Redis, id)
 	if err == nil && shop != nil {
 		// 缓存命中，直接返回
 		return utils.SuccessResultWithData(shop)
 	}
 
-	// 2. 缓存未命中或缓存查询出错，查询数据库
+	// 3. 缓存未命中或缓存查询出错，查询数据库
 	shop, err = dao.GetShopById(ctx, dao.DB, id)
 	if err != nil {
 		// 数据库查询失败
 		return utils.ErrorResult("查询失败: " + err.Error())
 	}
 
-	// 3. 缓存未命中，设置缓存
+	// 4. 缓存未命中，设置缓存
 	err = dao.SetShopCacheById(ctx, dao.Redis, id, shop)
 	if err != nil {
 		return utils.ErrorResult("查询失败: " + err.Error())
 	}
 
-	// 4. 数据库查询成功，返回结果（DAO层已处理缓存写入）
+	// 5. 数据库查询成功，返回结果（DAO层已处理缓存写入）
 	return utils.SuccessResultWithData(shop)
 }
 

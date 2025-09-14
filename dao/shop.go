@@ -24,6 +24,16 @@ func GetShopById(ctx context.Context, db *gorm.DB, shopId uint) (*models.Shop, e
 	return shop, nil
 }
 
+// GetAllShopIDs 获取所有商铺ID
+func GetAllShopIDs(ctx context.Context, db *gorm.DB) ([]uint, error) {
+	var ids []uint
+	err := db.WithContext(ctx).Model(&models.Shop{}).Pluck("id", &ids).Error
+	if err != nil {
+		return nil, err
+	}
+	return ids, nil
+}
+
 func UpdateShop(ctx context.Context, db *gorm.DB, shop *models.Shop) error {
 	err := db.Model(&models.Shop{}).Where("id = ?", shop.ID).Updates(shop).Error
 	if err != nil {
