@@ -52,6 +52,7 @@ func SetupRouter() *gin.Engine {
 			voucherGroup.GET("/list/:shopId", handler.GetVoucherList)
 			voucherGroup.POST("", handler.AddVoucher)
 			voucherGroup.POST("/seckill", handler.AddSeckillVoucher)
+			voucherGroup.GET("/seckill/:id", handler.GetSeckillVoucher)
 		}
 
 		// 优惠券订单相关路由

@@ -11,13 +11,13 @@ import (
 )
 
 const (
-	SHOP_CHACHE = "cache:shop:"
+	ShopCache = "cache:shop:"
 )
 
 func GetShopById(ctx context.Context, db *gorm.DB, rds *redis.Client, shopId uint) (*models.Shop, error) {
 	// 从缓存中获取店铺信息
 	shop := &models.Shop{}
-	result := rds.Get(ctx, SHOP_CHACHE+strconv.Itoa(int(shopId)))
+	result := rds.Get(ctx, ShopCache+strconv.Itoa(int(shopId)))
 	if result.Err() == nil { // 此时没有redis错误
 		err := result.Scan(shop)
 		if err == nil { // 此时缓存正确命中
@@ -29,7 +29,7 @@ func GetShopById(ctx context.Context, db *gorm.DB, rds *redis.Client, shopId uin
 		return nil, err
 	}
 	// 缓存店铺信息
-	err = rds.Set(ctx, SHOP_CHACHE+strconv.Itoa(int(shopId)), shop, time.Hour).Err()
+	err = rds.Set(ctx, ShopCache+strconv.Itoa(int(shopId)), shop, time.Hour).Err()
 	if err != nil {
 		return nil, err
 	}

@@ -80,3 +80,4 @@ tmp/
 
 # Any files containing developer personal information
 # (Add specific files as needed)
+test/
