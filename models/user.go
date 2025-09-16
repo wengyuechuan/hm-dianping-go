@@ -17,3 +17,7 @@ type User struct {
 	NickName  string         `gorm:"size:32" json:"nickName"`
 	Icon      string         `gorm:"size:255" json:"icon"`
 }
+
+func (User) TableName() string {
+	return "tb_user"
+}

@@ -8,10 +8,14 @@ import (
 
 // Follow 关注模型
 type Follow struct {
-	ID         uint           `gorm:"primarykey" json:"id"`
-	CreatedAt  time.Time      `json:"createdAt"`
-	UpdatedAt  time.Time      `json:"updatedAt"`
-	DeletedAt  gorm.DeletedAt `gorm:"index" json:"-"`
-	UserID     uint           `json:"userId"`
-	FollowUserID uint         `json:"followUserId"`
+	ID           uint           `gorm:"primarykey" json:"id"`
+	CreatedAt    time.Time      `json:"createdAt"`
+	UpdatedAt    time.Time      `json:"updatedAt"`
+	DeletedAt    gorm.DeletedAt `gorm:"index" json:"-"`
+	UserID       uint           `json:"userId"`
+	FollowUserID uint           `json:"followUserId"`
+}
+
+func (Follow) TableName() string {
+	return "tb_follow"
 }

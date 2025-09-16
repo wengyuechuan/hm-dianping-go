@@ -16,3 +16,7 @@ type ShopType struct {
 	Icon      string         `gorm:"size:255" json:"icon"`
 	Sort      int            `json:"sort"`
 }
+
+func (ShopType) TableName() string {
+	return "tb_shop_type"
+}

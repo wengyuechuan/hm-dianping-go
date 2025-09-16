@@ -20,3 +20,7 @@ type Blog struct {
 	Liked     int            `json:"liked"`
 	Comments  int            `json:"comments"`
 }
+
+func (Blog) TableName() string {
+	return "tb_blog"
+}

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"hm-dianping-go/models"
 	"hm-dianping-go/service"
 	"hm-dianping-go/utils"
 	"net/http"
@@ -70,6 +71,14 @@ func SaveShop(c *gin.Context) {
 
 // UpdateShop 更新商铺信息
 func UpdateShop(c *gin.Context) {
-	// TODO: 实现更新商铺功能
-	utils.ErrorResponse(c, http.StatusNotImplemented, "功能未完成")
+	// 1. 参数校验
+	var shop models.Shop
+	if err := c.ShouldBindJSON(&shop); err != nil {
+		utils.ErrorResponse(c, http.StatusBadRequest, "参数校验失败")
+		return
+	}
+
+	// 2. 更新商铺
+	result := service.UpdateShopById(c.Request.Context(), &shop)
+	utils.Response(c, result)
 }
