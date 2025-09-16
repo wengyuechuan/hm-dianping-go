@@ -21,6 +21,8 @@ type VoucherOrder struct {
 	UseTime    *time.Time     `json:"useTime"`
 	RefundTime *time.Time     `json:"refundTime"`
 	UpdateTime *time.Time     `json:"updateTime"`
+	// 券类型标识：1-普通券，2-秒杀券
+	VoucherType int `gorm:"index" json:"voucherType"`
 }
 
 func (VoucherOrder) TableName() string {

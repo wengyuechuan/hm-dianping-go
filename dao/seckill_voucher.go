@@ -2,6 +2,7 @@ package dao
 
 import (
 	"hm-dianping-go/models"
+
 	"gorm.io/gorm"
 )
 
@@ -35,16 +36,16 @@ func UpdateSeckillVoucherStock(voucherID uint, stock int) error {
 	result := DB.Model(&models.SeckillVoucher{}).
 		Where("voucher_id = ? AND stock >= ?", voucherID, stock).
 		Update("stock", gorm.Expr("stock - ?", stock))
-	
+
 	if result.Error != nil {
 		return result.Error
 	}
-	
+
 	// 检查是否有行被更新，如果没有说明库存不足
 	if result.RowsAffected == 0 {
 		return gorm.ErrRecordNotFound
 	}
-	
+
 	return nil
 }
 

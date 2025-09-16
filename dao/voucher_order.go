@@ -3,6 +3,7 @@ package dao
 import (
 	"context"
 	"hm-dianping-go/models"
+
 	"gorm.io/gorm"
 )
 
@@ -35,6 +36,16 @@ func GetVoucherOrderByUserAndVoucher(ctx context.Context, db *gorm.DB, userID, v
 func CheckVoucherOrderExists(ctx context.Context, db *gorm.DB, userID, voucherID uint) (bool, error) {
 	var count int64
 	err := db.WithContext(ctx).Model(&models.VoucherOrder{}).Where("user_id = ? AND voucher_id = ?", userID, voucherID).Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
+// CheckSeckillVoucherOrderExists 检查用户是否已购买该秒杀券（专门用于秒杀券的一人一单检查）
+func CheckSeckillVoucherOrderExists(ctx context.Context, db *gorm.DB, userID, voucherID uint) (bool, error) {
+	var count int64
+	err := db.WithContext(ctx).Model(&models.VoucherOrder{}).Where("user_id = ? AND voucher_id = ? AND voucher_type = ?", userID, voucherID, 2).Count(&count).Error
 	if err != nil {
 		return false, err
 	}

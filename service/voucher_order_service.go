@@ -35,10 +35,10 @@ func SeckillVoucher(ctx context.Context, userId, voucherId uint) *utils.Result {
 		return utils.ErrorResult("库存不足")
 	}
 
-	// 4. 检查用户是否已经购买过（使用DAO层函数）
-	exists, err := dao.CheckVoucherOrderExists(ctx, dao.DB, userId, voucherId)
+	// 4. 检查用户是否已经购买过该秒杀券（一人一单限制）
+	exists, err := dao.CheckSeckillVoucherOrderExists(ctx, dao.DB, userId, voucherId)
 	if err != nil {
-		log.Printf("检查订单是否存在失败: %v", err)
+		log.Printf("检查秒杀券订单是否存在失败: %v", err)
 		return utils.ErrorResult("系统错误")
 	}
 	if exists {
@@ -72,17 +72,18 @@ func SeckillVoucher(ctx context.Context, userId, voucherId uint) *utils.Result {
 			return utils.ErrorResult("系统错误")
 		}
 
-		// 6. 创建订单（使用DAO层函数）
+		// 6. 创建秒杀券订单（使用DAO层函数）
 		now = time.Now()
 		order := &models.VoucherOrder{
-			UserID:     userId,
-			VoucherID:  voucherId,
-			PayType:    1,
-			Status:     1,
-			CreateTime: &now,
+			UserID:      userId,
+			VoucherID:   voucherId,
+			PayType:     1,
+			Status:      1,
+			CreateTime:  &now,
+			VoucherType: 2, // 秒杀券类型
 		}
 
-		err = dao.CreateVoucherOrder(ctx, tx, order)
+		err = dao.CreateVoucherOrder(ctx, tx, order) // 这里创建的逻辑，主要依赖于mysql的约束
 		if err != nil {
 			tx.Rollback()
 			log.Printf("创建订单失败: %v", err)
@@ -103,3 +104,45 @@ func SeckillVoucher(ctx context.Context, userId, voucherId uint) *utils.Result {
 	// 重试次数用完，返回失败
 	return utils.ErrorResult("服务繁忙，请稍后重试")
 }
+
+/*
+需要注意的是，对于上面的方案，
+1. 秒杀券的库存扣减和订单创建是一个原子操作，通过事务确保数据一致性。
+2. 普通券的库存扣减和订单创建也是一个原子操作，通过事务确保数据一致性。
+3. 秒杀券的唯一索引确保了每个用户只能购买一次秒杀券。
+4. 普通券的索引确保了用户可以购买多次普通券。
+// 在models/voucher_order.go中
+type VoucherOrder struct {
+    ID         uint           `gorm:"primarykey" json:"id"`
+    CreatedAt  time.Time      `json:"createdAt"`
+    UpdatedAt  time.Time      `json:"updatedAt"`
+    DeletedAt  gorm.DeletedAt `gorm:"index" json:"-"`
+    UserID     uint           `json:"userId"`
+    VoucherID  uint           `json:"voucherId"`
+    PayType    int            `json:"payType"`
+    Status     int            `json:"status"`
+    CreateTime *time.Time     `json:"createTime"`
+    PayTime    *time.Time     `json:"payTime"`
+    UseTime    *time.Time     `json:"useTime"`
+    RefundTime *time.Time     `json:"refundTime"`
+    UpdateTime *time.Time     `json:"updateTime"`
+
+    // 新增字段：券类型标识
+    VoucherType int `gorm:"index" json:"voucherType"` // 1:普通券 2:秒杀券
+}
+
+// 添加复合索引，但不设为唯一
+func (VoucherOrder) TableName() string {
+    return "tb_voucher_order"
+}
+
+-- 只对秒杀券创建唯一约束
+CREATE UNIQUE INDEX uk_seckill_user_voucher
+ON tb_voucher_order (user_id, voucher_id)
+WHERE voucher_type = 2;
+
+-- 普通券只创建普通索引用于查询优化
+CREATE INDEX idx_normal_user_voucher
+ON tb_voucher_order (user_id, voucher_id, voucher_type);
+
+*/
