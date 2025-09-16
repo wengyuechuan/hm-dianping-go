@@ -88,19 +88,27 @@ go mod tidy
 修改 `config/application.yaml` 文件中的数据库配置：
 
 ```yaml
+server:
+  port: "8080"
+  mode: "debug"  # debug, release, test
+
 database:
   host: "localhost"
   port: "3306"
   username: "root"
-  password: "your_password"
+  password: "your_mysql_password"
   dbname: "hmdp"
   charset: "utf8mb4"
 
 redis:
   host: "localhost"
   port: "6379"
-  password: ""
+  password: "your_redis_password"
   db: 0
+
+jwt:
+  secret: "your_jwt_secret_key"
+  expire_time: 86400  # 24小时，单位：秒
 ```
 
 ### 4. 运行项目
@@ -179,7 +187,3 @@ go run main.go
 4. 生产环境请修改JWT密钥和数据库密码
 5. 建议使用GORM的自动迁移功能创建数据表
 6. 支持通过命令行参数指定配置文件：`go run main.go -config=path/to/config.yaml`
-
-## 许可证
-
-MIT License

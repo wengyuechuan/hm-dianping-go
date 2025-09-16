@@ -24,6 +24,7 @@ func SeckillVoucher(c *gin.Context) {
 		return
 	}
 
-	result := service.SeckillVoucher(userID.(uint), uint(voucherId))
+	ctx := c.Request.Context()
+	result := service.SeckillVoucher(ctx, userID.(uint), uint(voucherId))
 	utils.Response(c, result)
 }
