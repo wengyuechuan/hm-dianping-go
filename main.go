@@ -7,6 +7,7 @@ import (
 	"hm-dianping-go/dao"
 	"hm-dianping-go/models"
 	"hm-dianping-go/router"
+	"hm-dianping-go/service"
 	"hm-dianping-go/utils"
 	"log"
 	"time"
@@ -51,6 +52,9 @@ func main() {
 		log.Printf("Warning: Failed to initialize bloom filters: %v", err)
 		// 布隆过滤器初始化失败不应该阻止服务启动，只记录警告
 	}
+
+	// 初始化订单队列和worker
+	service.InitOrderQueue()
 
 	// 设置路由
 	r := router.SetupRouter()

@@ -1,8 +1,13 @@
 package dao
 
 import (
+	"context"
+	"encoding/json"
 	"hm-dianping-go/models"
+	"strconv"
+	"time"
 
+	"github.com/go-redis/redis/v8"
 	"gorm.io/gorm"
 )
 
@@ -57,4 +62,18 @@ func CheckSeckillVoucherExists(voucherID uint) (bool, error) {
 		return false, err
 	}
 	return count > 0, nil
+}
+
+// ============== 秒杀券相关缓存设计 =================
+const (
+	SeckillVoucherCache = "cache:seckill_voucher:stock:"
+)
+
+func SetSeckillVoucherStockCache(ctx context.Context, rds *redis.Client, voucherID uint, stock int) error {
+	key := SeckillVoucherCache + strconv.Itoa(int(voucherID))
+	data, err := json.Marshal(stock)
+	if err != nil {
+		return err
+	}
+	return rds.Set(ctx, key, data, time.Hour).Err()
 }

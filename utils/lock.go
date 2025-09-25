@@ -48,13 +48,13 @@ func TryLock(ctx context.Context, rds *redis.Client, key string) bool {
 func TryLockWithTTL(ctx context.Context, rds *redis.Client, key string, ttl time.Duration) (bool, string) {
 	// 生成唯一锁值
 	lockValue := generateLockValue()
-	
+
 	// 使用 SET key value NX EX seconds 确保原子性
 	result, err := rds.SetNX(ctx, key, lockValue, ttl).Result()
 	if err != nil {
 		return false, ""
 	}
-	
+
 	if result {
 		return true, lockValue
 	}
@@ -87,12 +87,12 @@ func UnLockSafe(ctx context.Context, rds *redis.Client, key, value string) bool 
 			return 0
 		end
 	`
-	
+
 	result, err := rds.Eval(ctx, luaScript, []string{key}, value).Result()
 	if err != nil {
 		return false
 	}
-	
+
 	return result.(int64) == 1
 }
 
@@ -111,11 +111,11 @@ func (dl *DistributedLock) Refresh(ctx context.Context) bool {
 			return 0
 		end
 	`
-	
+
 	result, err := dl.redisClient.Eval(ctx, luaScript, []string{dl.key}, dl.value, int(dl.ttl.Seconds())).Result()
 	if err != nil {
 		return false
 	}
-	
+
 	return result.(int64) == 1
 }

@@ -36,7 +36,7 @@ func AddVoucher(c *gin.Context) {
 // AddSeckillVoucher 新增秒杀券
 func AddSeckillVoucher(c *gin.Context) {
 	var req service.AddSeckillVoucherRequest
-	
+
 	// 绑定JSON数据到请求结构体
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.ErrorResponse(c, http.StatusBadRequest, "请求参数错误: "+err.Error())
@@ -44,7 +44,7 @@ func AddSeckillVoucher(c *gin.Context) {
 	}
 
 	// 调用service层处理业务逻辑
-	result := service.AddSeckillVoucher(&req)
+	result := service.AddSeckillVoucher(c.Request.Context(), &req)
 	utils.Response(c, result)
 }
 

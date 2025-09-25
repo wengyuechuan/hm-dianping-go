@@ -3,6 +3,7 @@ package dao
 import (
 	"context"
 	"hm-dianping-go/models"
+	"strconv"
 
 	"gorm.io/gorm"
 )
@@ -95,4 +96,14 @@ func CountVoucherOrdersByVoucher(ctx context.Context, db *gorm.DB, voucherID uin
 	var count int64
 	err := db.WithContext(ctx).Model(&models.VoucherOrder{}).Where("voucher_id = ?", voucherID).Count(&count).Error
 	return count, err
+}
+
+// ======== 用户订单缓存 =========
+const (
+	userOrderSetCache = "cache:seckill_voucher:order:"
+)
+
+// AddUserOrderToCache 添加用户订单到缓存
+func AddUserOrderToCache(ctx context.Context, userID, orderID uint) error {
+	return Redis.SAdd(ctx, userOrderSetCache+strconv.Itoa(int(userID)), orderID).Err()
 }

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"hm-dianping-go/dao"
 	"hm-dianping-go/models"
 	"hm-dianping-go/utils"
@@ -32,12 +33,12 @@ type AddSeckillVoucherRequest struct {
 }
 
 // AddSeckillVoucher 添加秒杀券
-func AddSeckillVoucher(req *AddSeckillVoucherRequest) *utils.Result {
+func AddSeckillVoucher(ctx context.Context, req *AddSeckillVoucherRequest) *utils.Result {
 	// 验证时间逻辑
 	if req.EndTime.Before(req.BeginTime) {
 		return utils.ErrorResult("结束时间不能早于开始时间")
 	}
-	
+
 	if req.BeginTime.Before(time.Now()) {
 		return utils.ErrorResult("开始时间不能早于当前时间")
 	}
@@ -91,6 +92,12 @@ func AddSeckillVoucher(req *AddSeckillVoucherRequest) *utils.Result {
 	if err := tx.Create(seckillVoucher).Error; err != nil {
 		tx.Rollback()
 		return utils.ErrorResult("创建秒杀券失败")
+	}
+
+	// 创建秒杀券缓存
+	if err := dao.SetSeckillVoucherStockCache(ctx, dao.Redis, seckillVoucher.VoucherID, seckillVoucher.Stock); err != nil {
+		tx.Rollback()
+		return utils.ErrorResult("创建秒杀券缓存失败")
 	}
 
 	// 提交事务
