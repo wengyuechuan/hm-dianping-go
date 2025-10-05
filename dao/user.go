@@ -2,6 +2,7 @@ package dao
 
 import (
 	"hm-dianping-go/models"
+	"strconv"
 )
 
 // GetUserByPhone 根据手机号查询用户
@@ -52,4 +53,19 @@ func GetAllUserIDs() ([]uint, error) {
 		return nil, err
 	}
 	return ids, nil
+}
+
+func GetUserByIDs(ids []uint) ([]models.User, error) {
+	var users []models.User
+	idsStr := ""
+	for _, id := range ids {
+		idsStr += strconv.Itoa(int(id)) + ","
+	}
+	idsStr = idsStr[:len(idsStr)-1] // 移除最后一个逗号
+
+	err := DB.Where("id IN ?", ids).Order("FIELD(id," + idsStr + ")").Find(&users).Error
+	if err != nil {
+		return nil, err
+	}
+	return users, nil
 }

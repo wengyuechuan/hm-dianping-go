@@ -29,7 +29,7 @@ func CreateBlog(c *gin.Context) {
 		return
 	}
 
-	result := service.CreateBlog(userID.(uint), req.Title, req.Content, req.Images, req.ShopId)
+	result := service.CreateBlog(c.Request.Context(), userID.(uint), req.Title, req.Content, req.Images, req.ShopId)
 	utils.Response(c, result)
 }
 
@@ -48,7 +48,7 @@ func LikeBlog(c *gin.Context) {
 		return
 	}
 
-	result := service.LikeBlog(userID.(uint), uint(blogId))
+	result := service.LikeBlog(c.Request.Context(), userID.(uint), uint(blogId))
 	utils.Response(c, result)
 }
 
@@ -57,7 +57,7 @@ func GetBlogList(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	size, _ := strconv.Atoi(c.DefaultQuery("size", "10"))
 
-	result := service.GetBlogList(page, size)
+	result := service.GetBlogList(c.Request.Context(), page, size)
 	utils.Response(c, result)
 }
 
@@ -70,7 +70,13 @@ func GetBlogById(c *gin.Context) {
 		return
 	}
 
-	result := service.GetBlogById(uint(id))
+	userID, exists := c.Get("userID")
+	if !exists {
+		utils.ErrorResponse(c, http.StatusUnauthorized, "用户未登录")
+		return
+	}
+
+	result := service.GetBlogById(c.Request.Context(), uint(id), userID.(uint))
 	utils.Response(c, result)
 }
 
@@ -79,7 +85,13 @@ func GetHotBlogList(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("current", "1"))
 	size, _ := strconv.Atoi(c.DefaultQuery("size", "10"))
 
-	result := service.GetHotBlogList(page, size)
+	userID, exists := c.Get("userID")
+	if !exists {
+		utils.ErrorResponse(c, http.StatusUnauthorized, "用户未登录")
+		return
+	}
+
+	result := service.GetHotBlogList(c.Request.Context(), page, size, userID.(uint))
 	utils.Response(c, result)
 }
 
@@ -94,6 +106,6 @@ func GetMyBlogList(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("current", "1"))
 	size, _ := strconv.Atoi(c.DefaultQuery("size", "10"))
 
-	result := service.GetMyBlogList(userID.(uint), page, size)
+	result := service.GetMyBlogList(c.Request.Context(), userID.(uint), page, size)
 	utils.Response(c, result)
 }
