@@ -24,7 +24,7 @@ func Follow(c *gin.Context) {
 		return
 	}
 
-	result := service.Follow(userID.(uint), uint(followId))
+	result := service.Follow(c.Request.Context(), userID.(uint), uint(followId))
 	utils.Response(c, result)
 }
 
@@ -43,7 +43,7 @@ func Unfollow(c *gin.Context) {
 		return
 	}
 
-	result := service.Unfollow(userID.(uint), uint(followId))
+	result := service.Unfollow(c.Request.Context(), userID.(uint), uint(followId))
 	utils.Response(c, result)
 }
 
@@ -62,6 +62,6 @@ func GetCommonFollows(c *gin.Context) {
 		return
 	}
 
-	result := service.GetCommonFollows(userID.(uint), uint(targetId))
+	result := service.GetCommonFollows(c.Request.Context(), userID.(uint), uint(targetId))
 	utils.Response(c, result)
 }
