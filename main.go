@@ -65,6 +65,11 @@ func main() {
 		log.Fatalf("Failed to initialize stream consumer: %v", err)
 	}
 
+	// 初始化地理位置数据到redis
+	if err := dao.LoadShopData(context.Background(), dao.DB, dao.Redis); err != nil {
+		log.Fatalf("Failed to load shop locations: %v", err)
+	}
+
 	// 设置路由
 	r := router.SetupRouter()
 
@@ -73,7 +78,7 @@ func main() {
 	if port == "" {
 		port = "8080"
 	}
-	
+
 	srv := &http.Server{
 		Addr:    ":" + port,
 		Handler: r,

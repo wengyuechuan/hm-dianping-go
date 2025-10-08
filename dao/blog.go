@@ -99,11 +99,19 @@ func DecrementBlogLiked(ctx context.Context, blogID uint) error {
 	return DB.WithContext(ctx).Model(&models.Blog{}).Where("id = ?", blogID).UpdateColumn("liked", DB.Raw("liked - 1")).Error
 }
 
+// GetBlogByIDs 根据博客 ID 获取博客详情
+func GetBlogByIDs(ctx context.Context, blogIDs []uint) ([]models.Blog, error) {
+	var blogs []models.Blog
+	err := DB.WithContext(ctx).Where("id IN ?", blogIDs).Find(&blogs).Error
+	return blogs, err
+}
+
 // ======= redis 相关操作 =========
 
 const (
 	// 博客点赞集合的键名格式：blog_like:%d
 	blogLikeKey = "blog:liked:"
+	feedKey     = "feed:"
 )
 
 // // IsLikedMember 检查用户是否已经点赞博客
@@ -150,4 +158,43 @@ func SaveLikedMember(ctx context.Context, rds *redis.Client, userID, blogID uint
 func GetTopKBloglikedMember(ctx context.Context, rds *redis.Client, blogID uint, k int) ([]string, error) {
 	// 从 SortedSet 中获取点赞数最多的 k 个用户
 	return rds.ZRevRange(ctx, blogLikeKey+strconv.Itoa(int(blogID)), 0, int64(k-1)).Result()
+}
+
+func FeedToUserRedis(ctx context.Context, rds *redis.Client, userID uint, blogID uint) error {
+	// 向用户的 feed 队列中插入id，使用 zset 存储，分数设为当前时间戳
+	return rds.ZAdd(ctx, feedKey+strconv.Itoa(int(userID)), &redis.Z{
+		Score:  float64(time.Now().Unix()),
+		Member: strconv.Itoa(int(blogID)),
+	}).Err()
+}
+
+func GetFeedFromUserRedis(ctx context.Context, rds *redis.Client, userID uint, lastId, offset, count int) ([]uint, int64, int, error) {
+	// 从用户的 feed 队列中获取博客 ID
+	result, err := rds.ZRevRangeByScoreWithScores(ctx, feedKey+strconv.Itoa(int(userID)), &redis.ZRangeBy{
+		Min:    "-inf",
+		Max:    strconv.Itoa(int(lastId)),
+		Offset: int64(offset),
+		Count:  int64(count),
+	}).Result()
+	if err != nil {
+		return nil, 0, 0, err
+	}
+
+	if len(result) == 0 {
+		return nil, 0, 0, nil
+	}
+
+	var blogIds []uint
+	minTime := result[len(result)-1].Score
+	offset = 0
+	for _, z := range result {
+		blogId, _ := strconv.Atoi(z.Member.(string))
+		blogIds = append(blogIds, uint(blogId))
+
+		if z.Score == minTime {
+			offset++
+		}
+	}
+
+	return blogIds, int64(minTime), int(offset), nil
 }

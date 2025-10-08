@@ -38,6 +38,7 @@ func SetupRouter() *gin.Engine {
 			shopGroup.GET("/of/name", handler.GetShopByName)
 			shopGroup.POST("", handler.SaveShop)
 			shopGroup.PUT("", handler.UpdateShop)
+			shopGroup.GET("/:id/nearby", utils.JWTMiddleware(), handler.GetNearbyShops) // 获取某个商铺附近的商铺
 		}
 
 		// 商铺类型相关路由
@@ -69,6 +70,7 @@ func SetupRouter() *gin.Engine {
 			blogGroup.GET("/hot", handler.GetHotBlogList)
 			blogGroup.GET("/of/me", utils.JWTMiddleware(), handler.GetMyBlogList)
 			blogGroup.GET("/:id", handler.GetBlogById)
+			blogGroup.GET("/of/follow", utils.JWTMiddleware(), handler.GetBlogOfFollow)
 		}
 
 		// 关注相关路由

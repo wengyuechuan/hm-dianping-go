@@ -61,6 +61,22 @@ func GetBlogList(c *gin.Context) {
 	utils.Response(c, result)
 }
 
+// GetBlogOfFollow 获取关注用户的博客列表
+func GetBlogOfFollow(c *gin.Context) {
+	userID, exists := c.Get("userID")
+	if !exists {
+		utils.ErrorResponse(c, http.StatusUnauthorized, "用户未登录")
+		return
+	}
+
+	lastId, _ := strconv.Atoi(c.DefaultQuery("lastId", "0"))
+	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "10"))
+	count, _ := strconv.Atoi(c.DefaultQuery("count", "10"))
+
+	result := service.GetBlogOfFollow(c.Request.Context(), userID.(uint), lastId, offset, count)
+	utils.Response(c, result)
+}
+
 // GetBlogById 根据ID获取博客
 func GetBlogById(c *gin.Context) {
 	idStr := c.Param("id")

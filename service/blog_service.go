@@ -24,6 +24,19 @@ func CreateBlog(ctx context.Context, userId uint, title, content, images string,
 		return utils.ErrorResult("创建失败")
 	}
 
+	// 查询关注用户
+	followers, err := dao.GetFollowers(ctx, userId)
+	if err != nil {
+		return utils.ErrorResult("查询关注用户失败")
+	}
+
+	// 遍历，然后将内容推送到关注用户的队列中
+	for _, follower := range followers {
+		if err := dao.FeedToUserRedis(ctx, dao.Redis, follower.ID, blog.ID); err != nil {
+			return utils.ErrorResult("发布博客失败")
+		}
+	}
+
 	return utils.SuccessResultWithData(blog.ID)
 }
 
@@ -154,6 +167,36 @@ func GetBlogLikes(ctx context.Context, blogId uint) *utils.Result {
 	}
 
 	return utils.SuccessResultWithData(users)
+}
+
+func GetBlogOfFollow(ctx context.Context, userId uint, lastId, offset, count int) *utils.Result {
+	// 从关注用户的队列中获取博客 ID
+	blogIds, minTime, offset, err := dao.GetFeedFromUserRedis(ctx, dao.Redis, userId, lastId, offset, count)
+	if err != nil {
+		return utils.ErrorResult("查询失败")
+	}
+
+	// 根据博客 ID 获取博客详情
+	blogs, err := dao.GetBlogByIDs(ctx, blogIds)
+	if err != nil {
+		return utils.ErrorResult("查询失败")
+	}
+
+	// 检查是否点赞
+	for _, blog := range blogs {
+		if err := isBlogLiked(ctx, &blog, userId); err != nil {
+			return utils.ErrorResult("检查点赞状态失败")
+		}
+	}
+
+	// 封装结果
+	res := map[string]interface{}{
+		"list":   blogs,
+		"minId":  minTime,
+		"offset": offset,
+	}
+
+	return utils.SuccessResultWithData(res)
 }
 
 func isBlogLiked(ctx context.Context, blog *models.Blog, userId uint) error {

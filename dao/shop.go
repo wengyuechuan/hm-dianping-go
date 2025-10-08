@@ -45,7 +45,8 @@ func UpdateShop(ctx context.Context, db *gorm.DB, shop *models.Shop) error {
 /* ================缓存相关================ */
 
 const (
-	ShopCache = "cache:shop:"
+	ShopCache         = "cache:shop:description:"
+	ShopLocationCache = "cache:shop:location:"
 )
 
 func GetShopCacheById(ctx context.Context, rds *redis.Client, shopId uint) (*models.Shop, error) {
@@ -100,4 +101,52 @@ func DelShopCacheById(ctx context.Context, rds *redis.Client, shopId uint) error
 		return err
 	}
 	return nil
+}
+
+// LoadShopData 加载店铺地理位置数据到缓存，按照类型进行存到不同key当中
+func LoadShopData(ctx context.Context, db *gorm.DB, rds *redis.Client) error {
+	// 1. 查询所有的店铺
+	var shops []models.Shop
+	err := db.WithContext(ctx).Model(&models.Shop{}).Find(&shops).Error
+	if err != nil {
+		return fmt.Errorf("failed to query shops: %w", err)
+	}
+
+	// 2. 遍历店铺，根据类型进行缓存
+	for _, shop := range shops {
+		// 2.1 使用 GEOADD 存储店铺位置信息
+		err = rds.GeoAdd(ctx, ShopLocationCache+strconv.Itoa(int(shop.TypeID)), &redis.GeoLocation{
+			Name:      strconv.Itoa(int(shop.ID)),
+			Latitude:  shop.Y,
+			Longitude: shop.X,
+		}).Err()
+
+		if err != nil {
+			return fmt.Errorf("failed to set geo cache: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// GetNearbyShops 获取某个店铺的附近某个距离的所有点
+func GetNearbyShops(ctx context.Context, rds *redis.Client, shop *models.Shop, radius float64, unit string, count int) ([]uint, error) {
+	key := ShopLocationCache + strconv.Itoa(int(shop.TypeID))
+	result, err := rds.GeoSearch(ctx, key, &redis.GeoSearchQuery{
+		Latitude:   shop.Y,
+		Longitude:  shop.X,
+		Radius:     radius,
+		RadiusUnit: unit,
+		Count:      count,
+	}).Result()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get geo cache: %w", err)
+	}
+	// 2. 解析结果，提取店铺ID
+	var shopIds []uint
+	for _, loc := range result {
+		id, _ := strconv.Atoi(loc)
+		shopIds = append(shopIds, uint(id))
+	}
+	return shopIds, nil
 }

@@ -82,3 +82,30 @@ func UpdateShop(c *gin.Context) {
 	result := service.UpdateShopById(c.Request.Context(), &shop)
 	utils.Response(c, result)
 }
+
+// GetNearbyShops 获取某个店铺的附近某个距离的所有点
+func GetNearbyShops(c *gin.Context) {
+	// 1. 参数校验
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusBadRequest, "无效的商铺ID")
+		return
+	}
+
+	radius, err := strconv.ParseFloat(c.DefaultQuery("radius", "1.0"), 64)
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusBadRequest, "无效的半径")
+		return
+	}
+
+	count, err := strconv.Atoi(c.DefaultQuery("count", "10"))
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusBadRequest, "无效的数量")
+		return
+	}
+
+	// 2. 查询附近的商铺
+	result := service.GetNearbyShops(c.Request.Context(), uint(id), radius, count)
+	utils.Response(c, result)
+}

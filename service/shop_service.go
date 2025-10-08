@@ -185,3 +185,21 @@ func GetShopByName(name string, page, size int) *utils.Result {
 		"size":  size,
 	})
 }
+
+// GetNearbyShops 获取某个店铺的附近某个距离的所有点
+func GetNearbyShops(ctx context.Context, shopId uint, radius float64, count int) *utils.Result {
+	// 1. 查询店铺
+	shop, err := dao.GetShopById(ctx, dao.DB, shopId)
+	if err != nil {
+		return utils.ErrorResult("查询店铺失败: " + err.Error())
+	}
+
+	// 2. 查询附近的同类型商铺
+	shopIds, err := dao.GetNearbyShops(ctx, dao.Redis, shop, radius, "km", count)
+	if err != nil {
+		return utils.ErrorResult("查询附近商铺失败: " + err.Error())
+	}
+
+	// 3. 返回结果
+	return utils.SuccessResultWithData(shopIds)
+}
