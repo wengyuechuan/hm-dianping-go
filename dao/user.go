@@ -1,8 +1,12 @@
 package dao
 
 import (
+	"context"
+	"fmt"
 	"hm-dianping-go/models"
 	"strconv"
+
+	"github.com/go-redis/redis/v8"
 )
 
 // GetUserByPhone 根据手机号查询用户
@@ -68,4 +72,21 @@ func GetUserByIDs(ids []uint) ([]models.User, error) {
 		return nil, err
 	}
 	return users, nil
+}
+
+// ===== redis 相关
+const (
+	SignUserKey = "user:sign:%d:%s" // sign:userID:month
+)
+
+// SignUser 签到
+func SignUser(ctx context.Context, rdb *redis.Client, userID uint, month string, day int) error {
+	key := fmt.Sprintf(SignUserKey, userID, month)
+	return rdb.SetBit(ctx, key, int64(day-1), 1).Err()
+}
+
+// CheckSign 获取某个用户某个月到某一天的签到状态
+func CheckSign(ctx context.Context, rdb *redis.Client, userID uint, month string, day int) (int64, error) {
+	key := fmt.Sprintf(SignUserKey, userID, month)
+	return rdb.GetBit(ctx, key, int64(day-1)).Result()
 }

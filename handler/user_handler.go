@@ -4,6 +4,7 @@ import (
 	"hm-dianping-go/service"
 	"hm-dianping-go/utils"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -108,5 +109,35 @@ func SendCode(c *gin.Context) {
 		return
 	}
 	result := service.SendCode(phone)
+	utils.Response(c, result)
+}
+
+// Sign 用户签到
+func Sign(c *gin.Context) {
+	userID, exists := c.Get("userID")
+	if !exists {
+		utils.ErrorResponse(c, http.StatusUnauthorized, "用户未登录")
+		return
+	}
+
+	result := service.Sign(c.Request.Context(), userID.(uint))
+	utils.Response(c, result)
+}
+
+// CheckSign 获取用户签到状态
+func CheckSign(c *gin.Context) {
+	userID, exists := c.Get("userID")
+	if !exists {
+		utils.ErrorResponse(c, http.StatusUnauthorized, "用户未登录")
+		return
+	}
+
+	month := c.Query("month")
+	if month == "" {
+		// 以当前月为准
+		month = time.Now().Format("2006-01")
+	}
+
+	result := service.CheckSign(c.Request.Context(), userID.(uint), month)
 	utils.Response(c, result)
 }

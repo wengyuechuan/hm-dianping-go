@@ -1,7 +1,9 @@
 package service
 
 import (
+	"context"
 	"fmt"
+	"time"
 
 	"hm-dianping-go/dao"
 	"hm-dianping-go/models"
@@ -169,4 +171,45 @@ func SendCode(phone string) *utils.Result {
 	fmt.Printf("[开发模式] 手机号 %s 的验证码是: %s\n", phone, code)
 
 	return utils.SuccessResult("验证码发送成功")
+}
+
+func Sign(ctx context.Context, userID uint) *utils.Result {
+	// 检查用户是否已签到
+	// 这里使用 redis 的 bitMap 来实现
+
+	// 1. 获取本月的日期
+	date := time.Now().Format("200601")
+
+	// 2. 获取今天是本月的第几天
+	day := time.Now().Day()
+
+	// 2. 直接签到
+	if err := dao.SignUser(ctx, dao.Redis, userID, date, day); err != nil {
+		return utils.ErrorResult("签到失败")
+	}
+	return utils.SuccessResult("签到成功")
+}
+
+func CheckSign(ctx context.Context, userID uint, month string) *utils.Result {
+	// 检查某个月到某一天的连续签到次数
+	// 获取到当前时间的第几天
+	day := time.Now().Day()
+
+	result, err := dao.CheckSign(ctx, dao.Redis, userID, month, day)
+	if err != nil {
+		return utils.ErrorResult("查询签到状态失败")
+	}
+
+	count := 0
+	for {
+		if (result & 1) == 0 {
+			break
+		} else {
+			count++
+		}
+		result >>= 1
+	}
+
+	// 3. 检查签到状态
+	return utils.SuccessResultWithData(count)
 }

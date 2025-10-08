@@ -14,6 +14,7 @@ func SetupRouter() *gin.Engine {
 	// 添加中间件
 	r.Use(utils.CORSMiddleware())
 	r.Use(utils.LoggerMiddleware())
+	r.Use(utils.UVStatMiddleware()) // UV统计中间件
 
 	// API路由组
 	api := r.Group("/api")
@@ -27,6 +28,7 @@ func SetupRouter() *gin.Engine {
 			userGroup.POST("/logout", handler.UserLogout)
 			userGroup.GET("/me", utils.JWTMiddleware(), handler.GetUserInfo)
 			userGroup.PUT("/update", utils.JWTMiddleware(), handler.UpdateUserInfo)
+			userGroup.POST("/sign", utils.JWTMiddleware(), handler.Sign) // 签到
 		}
 
 		// 商铺相关路由
@@ -79,6 +81,16 @@ func SetupRouter() *gin.Engine {
 			followGroup.POST("/:id", utils.JWTMiddleware(), handler.Follow)
 			followGroup.DELETE("/:id", utils.JWTMiddleware(), handler.Unfollow)
 			followGroup.GET("/common/:id", utils.JWTMiddleware(), handler.GetCommonFollows)
+		}
+
+		// 统计相关路由
+		statGroup := api.Group("/stat")
+		{
+			statGroup.GET("/uv/today", handler.GetTodayUV)                    // 获取今日UV
+			statGroup.GET("/uv/daily", handler.GetDailyUV)                   // 获取指定日期UV
+			statGroup.GET("/uv/range", handler.GetUVRange)                   // 获取日期范围UV
+			statGroup.GET("/uv/recent", handler.GetRecentUV)                 // 获取最近N天UV
+			statGroup.GET("/uv/summary", handler.GetUVSummary)               // 获取UV统计摘要
 		}
 	}
 

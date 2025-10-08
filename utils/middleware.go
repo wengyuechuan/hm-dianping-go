@@ -1,7 +1,9 @@
 package utils
 
 import (
+	"context"
 	"fmt"
+	"hm-dianping-go/dao"
 	"net/http"
 	"strings"
 	"time"
@@ -79,4 +81,44 @@ func RecoveryMiddleware() gin.HandlerFunc {
 	return gin.CustomRecovery(func(c *gin.Context, recovered interface{}) {
 		ErrorResponse(c, http.StatusInternalServerError, "服务器内部错误")
 	})
+}
+
+// UVStatMiddleware UV统计中间件，使用Redis HyperLogLog实现
+func UVStatMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// 先执行请求
+		c.Next()
+		
+		// 请求处理完成后进行UV统计
+		go func() {
+			// 获取用户标识，优先使用用户ID，其次使用IP
+			var userIdentifier string
+			
+			// 尝试从JWT中获取用户ID
+			if userID, exists := c.Get("userID"); exists {
+				userIdentifier = fmt.Sprintf("user:%v", userID)
+			} else {
+				// 使用客户端IP作为标识
+				userIdentifier = fmt.Sprintf("ip:%s", c.ClientIP())
+			}
+			
+			// 获取当前日期作为key的一部分
+			today := time.Now().Format("2006-01-02")
+			
+			// 使用HyperLogLog记录UV
+			uvKey := fmt.Sprintf("uv:daily:%s", today)
+			
+			// 异步记录到Redis，避免影响请求性能
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer cancel()
+			
+			if err := dao.Redis.PFAdd(ctx, uvKey, userIdentifier).Err(); err != nil {
+				// 记录错误但不影响主流程
+				fmt.Printf("UV统计记录失败: %v\n", err)
+			}
+			
+			// 设置key的过期时间为7天，避免数据无限增长
+			dao.Redis.Expire(ctx, uvKey, 7*24*time.Hour)
+		}()
+	}
 }
